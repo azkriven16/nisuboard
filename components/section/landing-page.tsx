@@ -6,6 +6,7 @@ import { IconDownload, IconMenu2 } from "@tabler/icons-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Drawer, DrawerContent, DrawerOverlay } from "@/components/ui/drawer";
+import { Logo } from "../logo";
 
 export default function LandingPage() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -15,9 +16,7 @@ export default function LandingPage() {
             {/* Navigation Bar */}
             <nav className="shadow-sm bg-background">
                 <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-                    <h1 className="text-2xl font-bold text-foreground">
-                        Nisuboard
-                    </h1>
+                    <Logo />
                     <div className="flex space-x-4 items-center">
                         <div className="hidden md:flex space-x-4">
                             <Link
