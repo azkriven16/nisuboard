@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import ReactQueryProvider from "@/components/providers/react-query-provider";
 
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 const geistSans = localFont({
     src: "./fonts/GeistVF.woff",
     variable: "--font-geist-sans",
@@ -50,6 +51,7 @@ export default function RootLayout({
                         disableTransitionOnChange
                     >
                         <ReactQueryProvider>{children}</ReactQueryProvider>
+                        <Toaster />
                     </ThemeProvider>
                 </body>
             </html>

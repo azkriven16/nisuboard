@@ -3,6 +3,7 @@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import UserButton from "./user-button";
 
 interface TopNavProps {
     priceRange: number[];
@@ -19,7 +20,7 @@ export function TopNav({
 }: TopNavProps) {
     return (
         <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg shadow-lg border border-border p-4">
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col justify-center gap-4">
                 {/* Search Input and Theme Toggle */}
                 <div className="flex gap-2 items-center">
                     <div className="relative flex-1">
@@ -46,6 +47,7 @@ export function TopNav({
                         </svg>
                     </div>
                     <ThemeToggle />
+                    <UserButton />
                 </div>
 
                 {/* Filter Buttons */}

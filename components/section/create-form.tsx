@@ -1,8 +1,5 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import {
     Form,
@@ -14,8 +11,6 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
     Select,
     SelectContent,
@@ -23,8 +18,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { Switch } from "@/components/ui/switch";
 import UserLocationButton from "@/components/user-location-button";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
 
 const formSchema = z.object({
     title: z.string().min(2, {
@@ -36,8 +37,6 @@ const formSchema = z.object({
     address: z.string().min(5, {
         message: "Address must be at least 5 characters.",
     }),
-    latitude: z.number(),
-    longitude: z.number(),
     bedroom_no: z.number().min(1),
     bathroom_no: z.number().min(1),
     wifi_available: z.boolean(),
@@ -45,11 +44,19 @@ const formSchema = z.object({
     close_to: z.enum(["west", "main", "both"]),
     owner_name: z.string().min(2),
     owner_contact: z.string().min(11),
-    description: z.string().min(10),
-    images: z.array(z.string()).optional(),
+    images: z.array(z.string()).min(1, {
+        message: "At least one image is required.",
+    }),
+    latitude: z.number().min(-90).max(90, {
+        message: "Latitude must be between -90 and 90 degrees",
+    }),
+    longitude: z.number().min(-180).max(180, {
+        message: "Longitude must be between -180 and 180 degrees",
+    }),
 });
 
 export default function CreateForm() {
+    const router = useRouter();
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
@@ -68,7 +75,6 @@ export default function CreateForm() {
             close_to: "west",
             owner_name: "",
             owner_contact: "",
-            description: "",
             images: [],
         },
     });
@@ -84,61 +90,78 @@ export default function CreateForm() {
         // Create preview URLs for the selected images
         const urls = files.map((file) => URL.createObjectURL(file));
         setPreviewUrls(urls);
+
+        // Set the images field value to trigger validation
+        form.setValue("images", urls);
     };
 
     const handleLocationSelect = (latitude: number, longitude: number) => {
         form.setValue("latitude", latitude);
         form.setValue("longitude", longitude);
+        toast.success("Location selected successfully");
     };
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
-            // Handle property images upload
+            // Upload images first
             const imageUrls = await Promise.all(
                 selectedImages.map(async (file) => {
                     const formData = new FormData();
                     formData.append("file", file);
 
-                    // Save to public/images
-                    const response = await fetch("/api/upload", {
+                    const uploadResponse = await fetch("/api/upload", {
                         method: "POST",
                         body: formData,
                     });
 
-                    const data = await response.json();
-                    return `/images/${data.filename}`;
+                    if (!uploadResponse.ok) {
+                        throw new Error("Failed to upload image");
+                    }
+
+                    const uploadData = await uploadResponse.json();
+                    return `/images/${uploadData.filename}`;
                 })
             );
 
-            const postData = {
+            // Create listing with uploaded image URLs
+            const listingData = {
                 ...values,
                 images: imageUrls,
             };
 
-            const response = await fetch("/api/posts", {
+            const listingResponse = await fetch("/api/listing", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(postData),
+                body: JSON.stringify(listingData),
             });
 
-            if (!response.ok) {
-                throw new Error("Failed to create post");
+            if (!listingResponse.ok) {
+                const errorData = await listingResponse.json();
+                if (listingResponse.status === 401) {
+                    toast.error("Unauthorized - Please sign in");
+                } else {
+                    toast.error(errorData.error || "Failed to create listing");
+                }
+                throw new Error("Failed to create listing");
             }
+            const createdListing = await listingResponse.json();
+            toast.success("Listing created successfully!");
 
-            const data = await response.json();
-            console.log("Post created:", data);
-
-            // Reset form and image states
+            // Reset form and states
             form.reset();
             setSelectedImages([]);
             setPreviewUrls([]);
+
+            router.push("/map");
         } catch (error) {
-            console.error("Error creating post:", error);
+            console.error("Error in form submission:", error);
+            toast.error("Failed to create listing. Please try again.");
+            throw error;
         }
     }
-
+    console.log(form.formState.errors);
     return (
         <div className="container mx-auto px-4 py-8">
             <h1 className="text-2xl font-bold mb-6">Create New Listing</h1>
@@ -295,6 +318,11 @@ export default function CreateForm() {
                                     )}
                                 />
                             </div>
+                            <FormDescription className="mt-2">
+                                Please select a location or enter coordinates
+                                manually. Both latitude and longitude are
+                                required.
+                            </FormDescription>
                         </FormItem>
                     </div>
 
@@ -429,96 +457,122 @@ export default function CreateForm() {
                         />
                     </div>
 
-                    <FormItem>
-                        <FormLabel>Property Images</FormLabel>
-                        <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 transition-colors hover:border-gray-400 dark:hover:border-gray-600">
-                            <div className="flex flex-col items-center justify-center gap-4">
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-10 w-10 text-gray-400"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                    />
-                                </svg>
-                                <FormControl>
-                                    <Input
-                                        type="file"
-                                        multiple
-                                        accept="image/*"
-                                        onChange={handleImageUpload}
-                                        className="hidden"
-                                        id="image-upload"
-                                    />
-                                </FormControl>
-                                <label
-                                    htmlFor="image-upload"
-                                    className="flex flex-col items-center gap-2 cursor-pointer"
-                                >
-                                    <span className="font-medium text-sm">
-                                        Drop your images here, or click to
-                                        select
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                        Upload up to 4 images (PNG, JPG)
-                                    </span>
-                                </label>
-                            </div>
-
-                            {previewUrls.length > 0 && (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-                                    {previewUrls.map((url, index) => (
-                                        <div
-                                            key={index}
-                                            className="relative aspect-square group"
+                    <FormField
+                        control={form.control}
+                        name="images"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Property Images</FormLabel>
+                                <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 transition-colors hover:border-gray-400 dark:hover:border-gray-600">
+                                    <div className="flex flex-col items-center justify-center gap-4">
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className="h-10 w-10 text-gray-400"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
                                         >
-                                            <img
-                                                src={url}
-                                                alt={`Preview ${index + 1}`}
-                                                className="w-full h-full object-cover rounded-lg transition-transform group-hover:scale-[1.02]"
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                                             />
-                                            <button
-                                                onClick={() => {
-                                                    const newUrls = [
-                                                        ...previewUrls,
-                                                    ];
-                                                    const newImages = [
-                                                        ...selectedImages,
-                                                    ];
-                                                    newUrls.splice(index, 1);
-                                                    newImages.splice(index, 1);
-                                                    setPreviewUrls(newUrls);
-                                                    setSelectedImages(
-                                                        newImages
-                                                    );
-                                                }}
-                                                className="absolute top-2 right-2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <svg
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    className="h-4 w-4"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
+                                        </svg>
+                                        <FormControl>
+                                            <Input
+                                                type="file"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                                className="hidden"
+                                                id="image-upload"
+                                            />
+                                        </FormControl>
+                                        <label
+                                            htmlFor="image-upload"
+                                            className="flex flex-col items-center gap-2 cursor-pointer"
+                                        >
+                                            <span className="font-medium text-sm">
+                                                Drop your images here, or click
+                                                to select
+                                            </span>
+                                            <span className="text-xs text-gray-500">
+                                                Upload up to 4 images (PNG, JPG)
+                                            </span>
+                                        </label>
+                                    </div>
+
+                                    {previewUrls.length > 0 && (
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+                                            {previewUrls.map((url, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="relative aspect-square group"
                                                 >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
+                                                    <img
+                                                        src={url}
+                                                        alt={`Preview ${
+                                                            index + 1
+                                                        }`}
+                                                        className="w-full h-full object-cover rounded-lg transition-transform group-hover:scale-[1.02]"
                                                     />
-                                                </svg>
-                                            </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            const newUrls = [
+                                                                ...previewUrls,
+                                                            ];
+                                                            const newImages = [
+                                                                ...selectedImages,
+                                                            ];
+                                                            newUrls.splice(
+                                                                index,
+                                                                1
+                                                            );
+                                                            newImages.splice(
+                                                                index,
+                                                                1
+                                                            );
+                                                            setPreviewUrls(
+                                                                newUrls
+                                                            );
+                                                            setSelectedImages(
+                                                                newImages
+                                                            );
+                                                            form.setValue(
+                                                                "images",
+                                                                newUrls
+                                                            );
+                                                        }}
+                                                        className="absolute top-2 right-2 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <svg
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            className="h-4 w-4"
+                                                            viewBox="0 0 20 20"
+                                                            fill="currentColor"
+                                                        >
+                                                            <path
+                                                                fillRule="evenodd"
+                                                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                                                clipRule="evenodd"
+                                                            />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
-                            )}
-                        </div>
-                    </FormItem>
+
+                                {!field.value?.length && (
+                                    <FormDescription className="text-red-500">
+                                        At least one image is required
+                                    </FormDescription>
+                                )}
+                            </FormItem>
+                        )}
+                    />
 
                     <Button type="submit" className="w-full">
                         Create Listing

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 
 // Get all listings
 export async function GET() {
@@ -29,17 +29,22 @@ export async function POST(req: Request) {
                 { status: 401 }
             );
         }
+        const clerk = await clerkClient();
 
+        const user = await clerk.users.getUser(userId);
         const body = await req.json();
+
         const listing = await prisma.listing.create({
             data: {
                 ...body,
-                userId,
+                userId: userId,
+                owner_image: user.imageUrl,
             },
         });
 
         return NextResponse.json(listing);
     } catch (error) {
+        console.error("Error creating listing:", error);
         return NextResponse.json(
             { error: "Error creating listing" },
             { status: 500 }

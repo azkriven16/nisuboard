@@ -7,6 +7,7 @@ import { useQuery } from "react-query";
 import { TopNav } from "@/components/top-nav";
 import { BottomNav } from "@/components/bottom-nav";
 import { useSearchParams } from "next/navigation";
+import UserButton from "@/components/user-button";
 
 const ListingSection = () => {
     const searchParams = useSearchParams();
@@ -156,9 +157,9 @@ const ListingSection = () => {
         <div className="min-h-screen bg-background">
             {/* Search and Filter Section */}
             <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-                <div className="container mx-auto px-4 py-4">
+                <div className="max-w-md mx-auto px-4 py-4">
                     <TopNav
-                        {...({
+                        {...{
                             priceRange,
                             onPriceRangeChange: setPriceRange,
                             searchValue: searchTerm,
@@ -169,7 +170,7 @@ const ListingSection = () => {
                             onWifiChange: setHasWifi,
                             hasWater,
                             onWaterChange: setHasWater,
-                        } as TopNavProps)}
+                        }}
                     />
                 </div>
             </div>

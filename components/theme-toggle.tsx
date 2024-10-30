@@ -17,7 +17,7 @@ export function ThemeToggle() {
     return (
         <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="p-2 rounded-full text-foreground"
+            className="p-2 mb-1 rounded-full text-foreground"
         >
             {theme === "dark" ? (
                 <IconSun className="w-5 h-5" />
