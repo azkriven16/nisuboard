@@ -10,7 +10,7 @@ export default function MapPage() {
     const [searchTerm, setSearchTerm] = useState("");
 
     return (
-        <div className="h-screen w-full relative">
+        <div className="h-screen w-full">
             <MapboxMap interactive={true} className="w-full h-full" />
 
             {/* Top Navigation */}

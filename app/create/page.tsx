@@ -16,7 +16,7 @@ export default function CreatePage() {
                     <Logo />
                 </div>
             </nav>
-            <div className="container py-10 pb-24">
+            <div className="container pb-24">
                 <div className="max-w-2xl mx-auto">
                     <CreateForm />
                 </div>
