@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server"; // Remove clerkClient import
 
 // Get all listings
 export async function GET() {
@@ -29,16 +29,14 @@ export async function POST(req: Request) {
                 { status: 401 }
             );
         }
-        const clerk = await clerkClient();
 
-        const user = await clerk.users.getUser(userId);
         const body = await req.json();
 
         const listing = await prisma.listing.create({
             data: {
                 ...body,
                 userId: userId,
-                owner_image: user.imageUrl,
+                owner_image: body.owner_image || "", // Use body.owner_image instead of user.imageUrl
             },
         });
 

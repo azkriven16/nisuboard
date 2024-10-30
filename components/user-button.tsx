@@ -34,6 +34,7 @@ export default function UserButton({ className }: { className?: string }) {
                             avatarBox: cn("size-7"),
                         },
                     }}
+                    afterSignOutUrl="/map"
                 />
             </SignedIn>
         </div>
