@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server"; // Remove clerkClient import
+import { auth } from "@clerk/nextjs/server";
 
 // Get all listings
 export async function GET() {
@@ -21,22 +21,26 @@ export async function GET() {
 
 // Create new listing
 export async function POST(req: Request) {
+    const body = await req.json();
     try {
-        const { userId } = await auth();
-        if (!userId) {
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { status: 401 }
-            );
-        }
-
-        const body = await req.json();
-
         const listing = await prisma.listing.create({
             data: {
-                ...body,
-                userId: userId,
-                owner_image: body.owner_image || "", // Use body.owner_image instead of user.imageUrl
+                address: body.address as string,
+                latitude: body.latitude as number,
+                longitude: body.longitude as number,
+                title: body.title as string,
+                price: body.price as number,
+                bedroom_no: body.bedroom_no as number,
+                bathroom_no: body.bathroom_no as number,
+                wifi_available: body.wifi_available as boolean,
+                watersupply_available: body.watersupply_available as boolean,
+                close_to: body.close_to as "west" | "main" | "both",
+                owner_name: body.owner_name as string,
+                owner_contact: body.owner_contact as string,
+                owner_image: body.owner_image as string,
+                userId: body.userId as string,
+                images: body.images as string[],
+                approved: false,
             },
         });
 

@@ -20,8 +20,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import UserLocationButton from "@/components/user-location-button";
+import { useUser } from "@clerk/nextjs";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -37,6 +38,12 @@ const formSchema = z.object({
     address: z.string().min(5, {
         message: "Address must be at least 5 characters.",
     }),
+    latitude: z.number().min(-90).max(90, {
+        message: "Latitude must be between -90 and 90 degrees",
+    }),
+    longitude: z.number().min(-180).max(180, {
+        message: "Longitude must be between -180 and 180 degrees",
+    }),
     bedroom_no: z.number().min(1),
     bathroom_no: z.number().min(1),
     wifi_available: z.boolean(),
@@ -44,18 +51,22 @@ const formSchema = z.object({
     close_to: z.enum(["west", "main", "both"]),
     owner_name: z.string().min(2),
     owner_contact: z.string().min(11),
+    owner_image: z.string(),
     images: z.array(z.string()).min(1, {
         message: "At least one image is required.",
     }),
-    latitude: z.number().min(-90).max(90, {
-        message: "Latitude must be between -90 and 90 degrees",
-    }),
-    longitude: z.number().min(-180).max(180, {
-        message: "Longitude must be between -180 and 180 degrees",
-    }),
+    approved: z.boolean().default(false),
+    userId: z.string(),
 });
 
 export default function CreateForm() {
+    const { user } = useUser();
+
+    if (!user) {
+        redirect("/sign-in");
+    }
+
+    console.log(user);
     const router = useRouter();
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -76,13 +87,15 @@ export default function CreateForm() {
             owner_name: "",
             owner_contact: "",
             images: [],
+            owner_image: user.imageUrl!,
+            userId: user.id!,
         },
     });
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
         if (files.length > 4) {
-            alert("You can only upload up to 4 images");
+            toast.error("You can only upload up to 4 images");
             return;
         }
         setSelectedImages(files);
@@ -103,6 +116,19 @@ export default function CreateForm() {
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
+            // Form validation
+            if (values.latitude === 0 || values.longitude === 0) {
+                toast.error(
+                    "Please select a location or enter valid coordinates"
+                );
+                return;
+            }
+
+            if (selectedImages.length === 0) {
+                toast.error("Please upload at least one image");
+                return;
+            }
+
             // Upload images first
             const imageUrls = await Promise.all(
                 selectedImages.map(async (file) => {
@@ -144,9 +170,9 @@ export default function CreateForm() {
                 } else {
                     toast.error(errorData.error || "Failed to create listing");
                 }
-                throw new Error("Failed to create listing");
+                return;
             }
-            const createdListing = await listingResponse.json();
+
             toast.success("Listing created successfully!");
 
             // Reset form and states
@@ -154,14 +180,23 @@ export default function CreateForm() {
             setSelectedImages([]);
             setPreviewUrls([]);
 
-            router.push("/map");
+            // router.push("/map");
         } catch (error) {
             console.error("Error in form submission:", error);
             toast.error("Failed to create listing. Please try again.");
-            throw error;
         }
     }
-    console.log(form.formState.errors);
+
+    // Show form errors as toasts
+    const formErrors = form.formState.errors;
+    if (Object.keys(formErrors).length > 0) {
+        Object.entries(formErrors).forEach(([field, error]) => {
+            if (error?.message) {
+                toast.error(`${field}: ${error.message}`);
+            }
+        });
+    }
+
     return (
         <div className="container mx-auto px-4 py-8">
             <h1 className="text-2xl font-bold mb-6">Create New Listing</h1>

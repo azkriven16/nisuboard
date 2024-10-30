@@ -106,7 +106,7 @@ const ListingSection = () => {
         }
 
         return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 gap-6">
                 {filteredListings.map((listing) => (
                     <div
                         key={listing.id}
@@ -176,7 +176,9 @@ const ListingSection = () => {
             </div>
 
             {/* Listings Grid */}
-            <div className="container mx-auto px-4 py-6">{renderContent()}</div>
+            <div className="container max-w-md mx-auto px-4 py-6">
+                {renderContent()}
+            </div>
 
             {/* Bottom Navigation */}
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-md px-4">
